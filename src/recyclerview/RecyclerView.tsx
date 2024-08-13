@@ -18,10 +18,25 @@ import {
 } from "react-native";
 
 import { ListRenderItem } from "../FlashListProps";
+import NativeFlashList from "../specs/NativeFlashList";
+import AutoLayoutView from "../native/auto-layout/AutoLayoutView";
 
 import { RVLinearLayoutManagerImpl, SpanSizeInfo } from "./LayoutManager";
 import { RecyclerViewManager } from "./RecyclerVIewManager";
 import { ViewHolder } from "./ViewHolder";
+
+interface FlashlistModule {
+  onLayoutCallback: (cb: () => void, viewId: string) => void;
+}
+
+console.log("FlashlistModule", NativeFlashList?.install());
+
+const module = (global as any).FlashListModule as FlashlistModule;
+console.log("global.FlashListModule", module);
+
+module.onLayoutCallback(() => {
+  console.log("onLayoutCallback");
+}, "123");
 
 export interface RecyclerViewProps<TItem> {
   horizontal?: boolean;
@@ -222,25 +237,32 @@ const RecyclerViewComponent = <T1,>(
         removeClippedSubviews={false}
       >
         <View
-          ref={childContainerViewRef}
+          ref={childContainerViewRef as any}
           style={layoutManager?.getLayoutSize()}
         >
-          {layoutManager && data
-            ? Array.from(renderStack, ([index, reactKey]) => {
-                const item = data[index];
-                return (
-                  <ViewHolder
-                    key={reactKey}
-                    index={index}
-                    layout={layoutManager.getLayout(index)}
-                    refHolder={refHolder}
-                    onSizeChanged={forceUpdate}
-                  >
-                    {renderItem?.({ item, index, target: "Cell" })}
-                  </ViewHolder>
-                );
-              })
-            : null}
+          <AutoLayoutView
+            disableAutoLayout
+            onLayout={() => {
+              console.log("onLayout");
+            }}
+          >
+            {layoutManager && data
+              ? Array.from(renderStack, ([index, reactKey]) => {
+                  const item = data[index];
+                  return (
+                    <ViewHolder
+                      key={reactKey}
+                      index={index}
+                      layout={layoutManager.getLayout(index)}
+                      refHolder={refHolder}
+                      onSizeChanged={forceUpdate}
+                    >
+                      {renderItem?.({ item, index, target: "Cell" })}
+                    </ViewHolder>
+                  );
+                })
+              : null}
+          </AutoLayoutView>
         </View>
       </ScrollView>
     </View>

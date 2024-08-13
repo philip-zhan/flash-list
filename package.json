@@ -86,11 +86,14 @@
   ],
   "dependencies": {
     "recyclerlistview": "4.2.1",
-    "tslib": "2.6.3"
+    "tslib": "^2.6.3"
   },
   "codegenConfig": {
     "name": "rnflashlist",
-    "type": "components",
-    "jsSrcsDir": "./src/specs"
+    "type": "all",
+    "jsSrcsDir": "./src/specs",
+    "android": {
+      "javaPackageName": "com.shopify.reactnative.flash_list"
+    }
   }
 }

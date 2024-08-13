@@ -1,5 +1,5 @@
 import React, { useEffect, ReactNode } from "react";
-import { LayoutChangeEvent } from "react-native";
+import { LayoutChangeEvent, ViewProps } from "react-native";
 
 import AutoLayoutViewNativeComponent from "./AutoLayoutViewNativeComponent";
 import { OnBlankAreaEvent } from "./AutoLayoutViewNativeComponentProps";
@@ -24,7 +24,7 @@ export interface BlankAreaEvent {
   blankArea: number;
 }
 
-export interface AutoLayoutViewProps {
+export interface AutoLayoutViewProps extends ViewProps {
   children?: ReactNode;
   onBlankAreaEvent?: BlankAreaEventHandler;
   onLayout?: (event: LayoutChangeEvent) => void;

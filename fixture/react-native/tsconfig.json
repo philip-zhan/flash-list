@@ -1,5 +1,10 @@
 {
   "extends": "../../shared/tsconfig.base.json",
   "references": [{ "path": "../../" }],
-  "include": ["src/**/*", "e2e/**/*"]
+  "include": ["src/**/*", "e2e/**/*"],
+  "compilerOptions": {
+    "paths": {
+      "tslib": ["../../node_modules/tslib/tslib.d.ts"]
+    }
+  }
 }

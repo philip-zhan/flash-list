@@ -1,3 +1,5 @@
+import java.nio.file.Paths
+
 def isNewArchitectureEnabled() {
     return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
 }
@@ -8,6 +10,56 @@ apply plugin: 'kotlin-android'
 
 if (isNewArchitectureEnabled()) {
     apply plugin: 'com.facebook.react'
+}
+
+static def findNodeModules(baseDir) {
+    def basePath = baseDir.toPath().normalize()
+    // Node's module resolution algorithm searches up to the root directory,
+    // after which the base path will be null
+    while (basePath) {
+        def nodeModulesPath = Paths.get(basePath.toString(), "node_modules")
+        def reactNativePath = Paths.get(nodeModulesPath.toString(), "react-native")
+        if (nodeModulesPath.toFile().exists() && reactNativePath.toFile().exists()) {
+            return nodeModulesPath.toString()
+        }
+        basePath = basePath.getParent()
+    }
+    throw new GradleException("react-native-worklets-core: Failed to find node_modules/ path!")
+}
+
+def JS_RUNTIME = {
+    // Override JS runtime with environment variable
+    if (System.getenv("JS_RUNTIME")) {
+        return System.getenv("JS_RUNTIME")
+    }
+
+    // Check if Hermes is enabled in app setup
+    def appProject = rootProject.allprojects.find { it.plugins.hasPlugin('com.android.application') }
+    if (appProject?.hermesEnabled?.toBoolean()) {
+        return "hermes"
+    }
+
+    // Use JavaScriptCore (JSC) by default
+    return "jsc"
+}.call()
+
+def nodeModules = findNodeModules(projectDir)
+
+def reactNativeArchitectures() {
+    def value = project.getProperties().get("reactNativeArchitectures")
+    return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
+}
+
+task prepareHeaders(type: Copy) {
+    from fileTree('../cpp').filter { it.isFile() }
+    into "${project.buildDir}/headers/rnworklets/react-native-worklets-core/"
+    includeEmptyDirs = false
+}
+
+task deleteCmakeCache() {
+    doFirst {
+        delete "${projectDir}/.cxx"
+    }
 }
 
 def _ext = rootProject.ext
@@ -43,6 +95,10 @@ android {
         namespace = "com.shopify.reactnative.flash_list"
     }
 
+    buildFeatures {
+        prefab true
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -66,6 +122,15 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_STL=c++_shared",
+                        "-DANDROID_TOOLCHAIN=clang",
+                        "-DREACT_NATIVE_DIR=${nodeModules}/react-native",
+                        "-DJS_RUNTIME=${JS_RUNTIME}"
+                abiFilters (*reactNativeArchitectures())
+            }
+        }
     }
 
     lintOptions {
@@ -75,10 +140,61 @@ android {
     testOptions {
       unitTests.returnDefaultValues = true
     }
+
+    externalNativeBuild {
+        cmake {
+            path "CMakeLists.txt"
+        }
+    }
+
+    buildTypes {
+        debug {
+            externalNativeBuild {
+                cmake {
+                    if (JS_RUNTIME == "hermes") {
+                        arguments "-DHERMES_ENABLE_DEBUGGER=1"
+                    } else {
+                        arguments "-DHERMES_ENABLE_DEBUGGER=0"
+                    }
+                }
+            }
+        }
+        release {
+            externalNativeBuild {
+                cmake {
+                    arguments "-DHERMES_ENABLE_DEBUGGER=0"
+                }
+            }
+        }
+    }
+
+    packagingOptions {
+        excludes = [
+                "META-INF",
+                "META-INF/**",
+                "**/libc++_shared.so",
+                "**/libfbjni.so",
+                "**/libjsi.so",
+                "**/libfolly_json.so",
+                "**/libfolly_runtime.so",
+                "**/libglog.so",
+                "**/libhermes.so",
+                "**/libhermes-executor-debug.so",
+                "**/libhermes_executor.so",
+                "**/libreactnativejni.so",
+                "**/libturbomodulejsijni.so",
+                "**/libreact_nativemodule_core.so",
+                "**/libjscexecutor.so",
+        ]
+    }
 }
 
 dependencies {
-    compileOnly "com.facebook.react:react-native:${_reactNativeVersion}"
+    implementation "com.facebook.react:react-native:${_reactNativeVersion}"
+    implementation "com.facebook.react:react-android"
+    if (JS_RUNTIME == "hermes") {
+        implementation "com.facebook.react:hermes-android"
+    }
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${_kotlinVersion}"
     testImplementation "junit:junit:${_junitVersion}"
     testImplementation "org.mockito.kotlin:mockito-kotlin:${_mockitoVersion}"
@@ -86,4 +202,11 @@ dependencies {
     testImplementation 'com.google.code.gson:gson:2.8.9'
     androidTestImplementation("androidx.test:runner:${_androidTestRunnerVersion}")
     androidTestImplementation("androidx.test:rules:${_androidTestRunnerVersion}")
+}
+
+tasks.configureEach { task ->
+    // C++ clean
+    if (task.name.contains("clean")) {
+        task.dependsOn(deleteCmakeCache)
+    }
 }

@@ -8,9 +8,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.HorizontalScrollView
 import android.widget.ScrollView
+import com.facebook.react.ReactApplication
 import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContext
 import com.facebook.react.bridge.WritableMap
+import com.facebook.react.uimanager.ReactShadowNode
+import com.facebook.react.uimanager.UIImplementation.LayoutUpdateListener
 import com.facebook.react.uimanager.UIManagerHelper
 import com.facebook.react.uimanager.events.EventDispatcher
 import com.facebook.react.uimanager.events.RCTEventEmitter
@@ -20,6 +24,7 @@ import com.facebook.react.views.view.ReactViewGroup
 /** Container for all RecyclerListView children. This will automatically remove all gaps and overlaps for GridLayouts with flexible spans.
  * Note: This cannot work for masonry layouts i.e, pinterest like layout */
 class AutoLayoutView(context: Context) : ReactViewGroup(context) {
+
     val alShadow = AutoLayoutShadow()
     var enableInstrumentation = false
     var disableAutoLayout = false
@@ -32,6 +37,8 @@ class AutoLayoutView(context: Context) : ReactViewGroup(context) {
         fixLayout()
         fixFooter()
         super.dispatchDraw(canvas)
+
+        onLayoutUpdated()
 
         val parentScrollView = getParentScrollView()
         if (enableInstrumentation && parentScrollView != null) {
@@ -154,5 +161,14 @@ class AutoLayoutView(context: Context) : ReactViewGroup(context) {
                 )
             )
         }
+    }
+
+    fun onLayoutUpdated() {
+        try {
+            FlashListModule.instance?.onLayoutUpdated(id, left.toFloat(), top.toFloat())
+        } catch (exception: Exception) {
+            Log.e("AutoLayoutView", "Failed to update layout!", exception)
+        }
+
     }
 }
