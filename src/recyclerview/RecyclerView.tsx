@@ -13,6 +13,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   ScrollView,
+  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -23,6 +24,7 @@ import { RecyclerViewManager } from "./RecyclerVIewManager";
 import { ViewHolder } from "./ViewHolder";
 import { measureLayout } from "./utils/measureLayout";
 import { RVGridLayoutManagerImpl } from "./GridLayoutManager";
+import { useContentOffsetManagement } from "./hooks/useContentOffsetManagement";
 
 export interface RecyclerViewProps<TItem> {
   horizontal?: boolean;
@@ -107,15 +109,14 @@ const RecyclerViewComponent = <T1,>(
     return (getItemType?.(data![index], index) ?? "default").toString();
   });
 
-  layoutManager?.updateLayoutParams({
-    overrideItemLayout: (index, layout) => {
-      props.overrideItemLayout?.(layout, data![index], index, numColumns ?? 1);
-    },
-    horizontal,
-    maxColumns: numColumns,
-    windowSize: recycleManager.getWindowSize(),
-  });
-
+  // layoutManager?.updateLayoutParams({
+  //   overrideItemLayout: (index, layout) => {
+  //     props.overrideItemLayout?.(layout, data![index], index, numColumns ?? 1);
+  //   },
+  //   horizontal,
+  //   maxColumns: numColumns,
+  // });
+  const screenWidth = useWindowDimensions().width;
   // Initialization effect
   useLayoutEffect(() => {
     if (internalViewRef.current && childContainerViewRef.current) {
@@ -128,19 +129,33 @@ const RecyclerViewComponent = <T1,>(
         (numColumns ?? 1) > 1 && !horizontal
           ? RVGridLayoutManagerImpl
           : RVLinearLayoutManagerImpl;
-      const newLayoutManager = new LayoutManagerClass({
-        windowSize: {
-          width: childViewLayout.width,
-          height: outerViewLayout.height,
-        },
-        maxColumns: numColumns ?? 1,
-        matchHeightsWithNeighbours: true,
-        horizontal,
-      });
-      recycleManager.updateLayoutManager(newLayoutManager);
-      recycleManager.startRender();
+      if (recycleManager.getLayoutManager() === undefined) {
+        const newLayoutManager = new LayoutManagerClass({
+          windowSize: {
+            width: childViewLayout.width,
+            height: outerViewLayout.height,
+          },
+          maxColumns: numColumns ?? 1,
+          matchHeightsWithNeighbours: true,
+          horizontal,
+        });
+        recycleManager.updateLayoutManager(newLayoutManager);
+        recycleManager.startRender();
+      } else {
+        console.log(outerViewLayout, childViewLayout);
+        recycleManager.getLayoutManager()?.updateLayoutParams({
+          windowSize: {
+            width: childViewLayout.width,
+            height: outerViewLayout.height,
+          },
+          maxColumns: numColumns ?? 1,
+          matchHeightsWithNeighbours: true,
+          horizontal,
+        });
+        forceUpdate();
+      }
     }
-  }, [horizontal, numColumns, recycleManager]);
+  }, [horizontal, numColumns, recycleManager, screenWidth]);
 
   useLayoutEffect(() => {
     // iterate refHolder and get measureInWindow dimensions for all objects. Don't call update but store all response in an array
@@ -202,25 +217,24 @@ const RecyclerViewComponent = <T1,>(
 
   // TODO: Replace with sync onLayout and better way to refresh
   const forceUpdate = useCallback(() => {
-    // setRenderStack(new Map(recycleManager.getRenderStack()));
-    // setTimeout(() => {
-    //   setRenderStack(new Map(recycleManager.getRenderStack()));
-    // }, 1000);
+    setRenderStack(new Map(recycleManager.getRenderStack()));
+    setTimeout(() => {
+      setRenderStack(new Map(recycleManager.getRenderStack()));
+    }, 100);
   }, [recycleManager]);
 
   return (
     <View style={{ flex: horizontal ? undefined : 1 }} ref={internalViewRef}>
       <ScrollView
         horizontal={horizontal}
+        contentOffset={useContentOffsetManagement(recycleManager)}
         ref={scrollViewRef}
         onScroll={onScroll}
         // TODO: evaluate perf
         removeClippedSubviews={false}
       >
-        <View
-          ref={childContainerViewRef}
-          style={layoutManager?.getLayoutSize()}
-        >
+        <View ref={childContainerViewRef} />
+        <View style={layoutManager?.getLayoutSize()}>
           {layoutManager && data
             ? Array.from(renderStack, ([index, reactKey]) => {
                 const item = data[index];

@@ -132,6 +132,14 @@ export class RVLinearLayoutManagerImpl extends RVLayoutManager {
 
   updateLayoutParams(params: LayoutParams): void {
     // TODO: Implement this
+    const newBoundedSize = this.horizontal
+      ? params.windowSize.height
+      : params.windowSize.width;
+    if (this.boundedSize !== newBoundedSize) {
+      this.boundedSize = newBoundedSize;
+      this.recomputeLayouts();
+      console.log(this.layouts);
+    }
   }
 
   // Updates layout information based on the provided layout info.
@@ -235,11 +243,13 @@ export class RVLinearLayoutManagerImpl extends RVLayoutManager {
         } else {
           layout.x = 0;
           layout.y = prevLayout.y + prevLayout.height;
+          layout.width = this.boundedSize;
         }
       } else {
         layout.x = 0;
         layout.y = 0;
         layout.minHeight = this.horizontal ? this.tallestItem?.height ?? 0 : 0;
+        layout.width = this.boundedSize;
       }
     }
     if (this.tallestItem) {

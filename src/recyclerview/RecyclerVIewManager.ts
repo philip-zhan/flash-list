@@ -17,6 +17,7 @@ export class RecyclerViewManager {
   private isFirstLayoutComplete = false;
   private stableIdProvider: (index: number) => string;
   private getItemType: (index: number) => string;
+  private scrollOffset = 0;
 
   constructor(
     onRenderStackChanged: (renderStack: Map<number, string>) => void,
@@ -80,6 +81,7 @@ export class RecyclerViewManager {
   }
 
   updateScrollOffset(offset: number) {
+    this.scrollOffset = offset;
     if (this.layoutManager) {
       this.viewabilityManager.updateScrollOffset(offset, this.layoutManager);
     }
@@ -120,6 +122,8 @@ export class RecyclerViewManager {
       this.updateRenderStack(
         visibleIndices.slice(0, Math.min(1, visibleIndices.length))
       );
+    } else {
+      this.onFirstLayoutComplete();
     }
   }
 
@@ -158,8 +162,13 @@ export class RecyclerViewManager {
     return this.layoutManager.getWindowsSize();
   }
 
-  getLastScrollOffset() {
+  // This might have margin/padding adjustments
+  getLastEffectiveScrollOffset() {
     return this.viewabilityManager.getScrollOffset();
+  }
+
+  getLastScrollOffset() {
+    return this.scrollOffset;
   }
 
   getViewabilityManager() {
@@ -168,6 +177,10 @@ export class RecyclerViewManager {
 
   getLayoutManager() {
     return this.layoutManager;
+  }
+
+  getStableId(index: number) {
+    return this.stableIdProvider(index);
   }
 
   getVisibleIndices() {
@@ -180,7 +193,7 @@ export class RecyclerViewManager {
       return this.viewabilityManager.getVisibleIndices();
     } else {
       return this.layoutManager.getVisibleLayouts(
-        this.getLastScrollOffset(),
+        this.getLastEffectiveScrollOffset(),
         this.layoutManager.getWindowsSize().height
       );
     }
