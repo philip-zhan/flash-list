@@ -1,12 +1,12 @@
 import React, {
+  forwardRef,
   RefObject,
   useCallback,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  forwardRef,
-  useImperativeHandle,
 } from "react";
 import {
   I18nManager,
@@ -17,6 +17,7 @@ import {
 } from "react-native";
 
 import { FlashListProps } from "../FlashListProps";
+import NativeResizeObserver from "../specs/NativeResizeObserver";
 
 import { RVLinearLayoutManagerImpl, SpanSizeInfo } from "./LayoutManager";
 import { RecyclerViewManager } from "./RecyclerVIewManager";
@@ -145,14 +146,23 @@ const RecyclerViewComponent = <T1,>(
   useLayoutEffect(() => {
     // iterate refHolder and get measureInWindow dimensions for all objects. Don't call update but store all response in an array
 
+    console.log("Layout effect");
     const layoutInfo = Array.from(refHolder, ([index, viewHolderRef]) => {
       const layout = measureLayout(viewHolderRef.current!);
+      if (index === 0) {
+        console.log("Layout", layout);
+      }
       return { index, dimensions: layout };
     });
     if (recycleManager.getLayoutManager()) {
+      if (recycleManager.getIsFirstLayoutComplete()) {
+        console.log("index 1 layout prev: ", recycleManager.getLayout(1));
+      }
+
       recycleManager
         .getLayoutManager()
         ?.modifyLayout(layoutInfo, data?.length ?? 0);
+      console.log("index 1 layout: ", recycleManager.getLayout(1));
       if (recycleManager.getIsFirstLayoutComplete()) {
         recycleManager.refresh();
       } else {
@@ -200,13 +210,41 @@ const RecyclerViewComponent = <T1,>(
     },
   }));
 
-  // TODO: Replace with sync onLayout and better way to refresh
-  const forceUpdate = useCallback(() => {
-    // setRenderStack(new Map(recycleManager.getRenderStack()));
-    // setTimeout(() => {
-    //   setRenderStack(new Map(recycleManager.getRenderStack()));
-    // }, 1000);
-  }, [recycleManager]);
+  /**
+   * FlashList -> render -> disable callback
+   * FlashList -> completes render -> listen to callback
+   */
+
+  if (internalViewRef.current) {
+    NativeResizeObserver.unregisterBoundsChangeCallback(
+      (internalViewRef.current as any)?.__nativeTag
+    );
+  }
+
+  useLayoutEffect(() => {
+    NativeResizeObserver.registerBoundsChangeCallback(
+      (internalViewRef.current as any)?.__nativeTag,
+      () => {
+        console.log("Bounds changed");
+        setRenderStack((rs) => new Map(rs));
+        return false;
+      }
+    );
+  });
+
+  // // TODO: Replace with sync onLayout and better way to refresh
+  // const updateLayout = useCallback(
+  //   (layoutInfo: RVLayoutInfo) => {
+  //     if (recycleManager.getLayoutManager()) {
+  //       console.log("Update layout", layoutInfo);
+  //       recycleManager
+  //         .getLayoutManager()
+  //         ?.modifyLayout([layoutInfo], data?.length ?? 0);
+  //       setRenderStack((rs) => new Map(rs));
+  //     }
+  //   },
+  //   [data?.length, recycleManager]
+  // );
 
   return (
     <View style={{ flex: horizontal ? undefined : 1 }} ref={internalViewRef}>
@@ -232,7 +270,7 @@ const RecyclerViewComponent = <T1,>(
                     // Since we mutate layout objects, we want to pass a copy. We do a custom comparison so new object here doesn't matter.
                     layout={{ ...layoutManager.getLayout(index) }}
                     refHolder={refHolder}
-                    onSizeChanged={forceUpdate}
+                    // onSizeChanged={updateLayout}
                     target="Cell"
                     renderItem={renderItem}
                     extraData={extraData}

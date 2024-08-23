@@ -90,7 +90,10 @@
   },
   "codegenConfig": {
     "name": "rnflashlist",
-    "type": "components",
-    "jsSrcsDir": "./src/specs"
+    "type": "all",
+    "jsSrcsDir": "./src/specs",
+    "android": {
+      "javaPackageName": "com.shopify.rnflashlist.specs"
+    }
   }
 }

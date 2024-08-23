@@ -2,21 +2,23 @@ import { LayoutChangeEvent, View } from "react-native";
 import React, {
   RefObject,
   useCallback,
+  // useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
 } from "react";
 
 import { FlashListProps, RenderTarget } from "../FlashListProps";
+// import NativeResizeObserver from "../specs/NativeResizeObserver";
 
 import { RVLayout } from "./LayoutManager";
-import { areDimensionsEqual } from "./utils/measureLayout";
+// import { areDimensionsEqual } from "./utils/measureLayout";
 
 export interface ViewHolderProps<TItem> {
   index: number;
   layout: RVLayout;
   refHolder: Map<number, RefObject<View | null>>;
-  onSizeChanged: (index: number) => void;
+  // onSizeChanged: (info: RVLayoutInfo) => void;
   extraData: any;
   target: RenderTarget;
   item: TItem;
@@ -29,7 +31,7 @@ const ViewHolderInternal = <TItem,>(props: ViewHolderProps<TItem>) => {
     index,
     refHolder,
     layout,
-    onSizeChanged,
+    // onSizeChanged,
     renderItem,
     extraData,
     item,
@@ -45,26 +47,66 @@ const ViewHolderInternal = <TItem,>(props: ViewHolderProps<TItem>) => {
     };
   }, [index, refHolder]);
 
-  const onLayout = useCallback(
-    (event: LayoutChangeEvent) => {
-      // height width don't match layot call
-      if (
-        !areDimensionsEqual(layout.height, event.nativeEvent.layout.height) ||
-        !areDimensionsEqual(layout.width, event.nativeEvent.layout.width)
-      ) {
-        const diff = layout.height - event.nativeEvent.layout.height;
-        if (Math.abs(diff) < 1) {
-          console.log(
-            "Layout height mismatch",
-            layout.height - event.nativeEvent.layout.height,
-            index
-          );
-        }
-        onSizeChanged(index);
-      }
-    },
-    [index, layout.height, layout.width, onSizeChanged]
-  );
+  // useEffect(() => {
+  //   NativeResizeObserver.registerBoundsChangeCallback(
+  //     (viewRef.current as any)?.__nativeTag,
+  //     ({ oldRect, newRect }) => {
+  //       console.log("Bounds changed", index, oldRect, newRect);
+  //       if (
+  //         !areDimensionsEqual(layout.height, newRect.height) ||
+  //         !areDimensionsEqual(layout.width, newRect.width)
+  //       ) {
+  //         const diff = layout.height - newRect.height;
+  //         if (Math.abs(diff) < 1) {
+  //           console.log(
+  //             "Layout height mismatch",
+  //             layout.height - newRect.height,
+  //             index
+  //           );
+  //           return true;
+  //         } else {
+  //           onSizeChanged({
+  //             index,
+  //             dimensions: { height: newRect.height, width: newRect.width },
+  //           });
+  //           return false;
+  //         }
+  //       }
+  //
+  //       return true;
+  //     }
+  //   );
+  //
+  //   return () => {
+  //     NativeResizeObserver.unregisterBoundsChangeCallback(
+  //       (viewRef.current as any)?.__nativeTag
+  //     );
+  //   };
+  // }, [index, layout.height, layout.width, onSizeChanged]);
+
+  const onLayout = useCallback((event: LayoutChangeEvent) => {
+    // height width don't match layot call
+    // if (
+    //   !areDimensionsEqual(layout.height, event.nativeEvent.layout.height) ||
+    //   !areDimensionsEqual(layout.width, event.nativeEvent.layout.width)
+    // ) {
+    //   const diff = layout.height - event.nativeEvent.layout.height;
+    //   if (Math.abs(diff) < 1) {
+    //     console.log(
+    //       "Layout height mismatch",
+    //       layout.height - event.nativeEvent.layout.height,
+    //       index
+    //     );
+    //   }
+    //   onSizeChanged({
+    //     index,
+    //     dimensions: {
+    //       height: event.nativeEvent.layout.height,
+    //       width: event.nativeEvent.layout.width,
+    //     },
+    //   });
+    // }
+  }, []);
 
   console.log("ViewHolder re-render", index);
 
@@ -101,7 +143,7 @@ export const ViewHolder = React.memo(
       prevProps.index === nextProps.index &&
       areLayoutsEqual(prevProps.layout, nextProps.layout) &&
       prevProps.refHolder === nextProps.refHolder &&
-      prevProps.onSizeChanged === nextProps.onSizeChanged &&
+      // prevProps.onSizeChanged === nextProps.onSizeChanged &&
       prevProps.extraData === nextProps.extraData &&
       prevProps.target === nextProps.target &&
       prevProps.item === nextProps.item &&
@@ -111,6 +153,7 @@ export const ViewHolder = React.memo(
 );
 
 function areLayoutsEqual(prevLayout: RVLayout, nextLayout: RVLayout): boolean {
+  // return false;
   return (
     prevLayout.x === nextLayout.x &&
     prevLayout.y === nextLayout.y &&

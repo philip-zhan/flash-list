@@ -89,7 +89,13 @@ const TweetContent = ({ tweet, showFullText }: TweetContentProps) => {
             <GrayText>2h</GrayText>
           </View>
           <Text style={styles.description}>
-            {showFullText ? tweet.fullText + tweet.fullText : tweet.fullText}
+            {showFullText
+              ? tweet.fullText +
+                tweet.fullText +
+                tweet.fullText +
+                tweet.fullText +
+                tweet.fullText
+              : tweet.fullText}
           </Text>
           <View style={styles.rowActions}>
             {tweetActions(
