@@ -1,4 +1,10 @@
-import React, { useContext, useRef, useState } from "react";
+import React, {
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   View,
   Text,
@@ -6,6 +12,7 @@ import {
   ActivityIndicator,
   ViewabilityConfig,
   FlatList,
+  Button,
 } from "react-native";
 import {
   BlankAreaEventHandler,
@@ -26,6 +33,14 @@ export interface TwitterProps {
   disableAutoLayout?: boolean;
 }
 
+export const NewTwitter = (props: TwitterProps) => {
+  return (
+    <View style={{ flex: 1 }}>
+      <Twitter {...props} />
+    </View>
+  );
+};
+
 const Twitter = ({
   instance,
   blankAreaTracker,
@@ -34,6 +49,7 @@ const Twitter = ({
 }: TwitterProps) => {
   const debugContext = useContext(DebugContext);
   const [refreshing, setRefreshing] = useState(false);
+  const [state, setState] = useState(0);
   const remainingTweets = useRef([...tweetsData].splice(10, tweetsData.length));
   const [tweets, setTweets] = useState(
     debugContext.pagingEnabled ? [...tweetsData].splice(0, 10) : tweetsData
@@ -44,17 +60,38 @@ const Twitter = ({
     minimumViewTime: 1000,
   }).current;
 
+  const renderItem = React.useCallback(({ item }) => {
+    return <TweetCell tweet={item} />;
+  }, []);
+
+  const keyExtractor = React.useCallback((item) => {
+    return item.id;
+  }, []);
+
   return (
-    <RecyclerView
-      ref={instance}
-      keyExtractor={(item) => {
-        return item.id;
-      }}
-      data={debugContext.emptyListEnabled ? [] : tweets}
-      renderItem={({ item }) => {
-        return <TweetCell tweet={item} />;
-      }}
-    />
+    <View style={{ flex: 1 }}>
+      <View
+        style={{
+          margin: state,
+          position: "absolute",
+          left: 0,
+          top: 0,
+          zIndex: 10000,
+        }}
+      >
+        <Button
+          title={`Press me${state}`}
+          onPress={() => setState((sttt) => (sttt + 1) % 1000)}
+        />
+      </View>
+
+      <RecyclerView
+        ref={instance}
+        keyExtractor={keyExtractor}
+        data={debugContext.emptyListEnabled ? [] : tweets}
+        renderItem={renderItem}
+      />
+    </View>
   );
 
   return (

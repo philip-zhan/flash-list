@@ -22,8 +22,8 @@ class NativeResizeObserver : public NativeResizeObserverCxxSpec<NativeResizeObse
  public:
   NativeResizeObserver(std::shared_ptr<CallInvoker> jsInvoker);
 
-  void registerBoundsChangeCallback(jsi::Runtime& rt, double target, jsi::Function callback);
-  void unregisterBoundsChangeCallback(jsi::Runtime& rt, double target);
+  void registerBoundsChangeCallback(jsi::Runtime& rt, jsi::Object target, jsi::Function callback);
+  void unregisterBoundsChangeCallback(jsi::Runtime& rt, jsi::Object target);
 
   #pragma mark - UIManagerCommitHook
 

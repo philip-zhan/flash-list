@@ -19,10 +19,10 @@ export interface Spec extends TurboModule {
    * Return a boolean to indicate if the render should continue.
    */
   readonly registerBoundsChangeCallback: (
-    target: number,
+    target: unknown,
     callback: (params: Params) => boolean
   ) => void;
-  readonly unregisterBoundsChangeCallback: (target: number) => void;
+  readonly unregisterBoundsChangeCallback: (target: unknown) => void;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>("NativeResizeObserver");

@@ -1,5 +1,6 @@
 import React, {
   forwardRef,
+  memo,
   RefObject,
   useCallback,
   useImperativeHandle,
@@ -15,6 +16,9 @@ import {
   ScrollView,
   View,
 } from "react-native";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import ReactFabric from "react-native/Libraries/Renderer/shims/ReactFabric";
 
 import { FlashListProps } from "../FlashListProps";
 import NativeResizeObserver from "../specs/NativeResizeObserver";
@@ -24,6 +28,18 @@ import { RecyclerViewManager } from "./RecyclerVIewManager";
 import { ViewHolder } from "./ViewHolder";
 import { measureLayout } from "./utils/measureLayout";
 import { RVGridLayoutManagerImpl } from "./GridLayoutManager";
+
+export function getInstanceHandle(node: any): any {
+  // $FlowExpectedError[prop-missing]
+  console.log("=>>>>>>", node);
+  return node.__internalInstanceHandle;
+}
+
+const getShadowNode = (ref: React.RefObject<View>) => {
+  return ReactFabric.getNodeFromInternalInstanceHandle(
+    getInstanceHandle(ref.current)
+  );
+};
 
 export interface RecyclerViewProps<TItem> {
   horizontal?: boolean;
@@ -73,6 +89,7 @@ const RecyclerViewComponent = <T1,>(
   const scrollViewRef = useRef<ScrollView>(null);
   const internalViewRef = useRef<View>(null);
   const childContainerViewRef = useRef<View>(null);
+
   const distanceFromWindow = useRef(0);
 
   const [recycleManager] = useState<RecyclerViewManager>(
@@ -215,23 +232,14 @@ const RecyclerViewComponent = <T1,>(
    * FlashList -> completes render -> listen to callback
    */
 
-  if (internalViewRef.current) {
-    NativeResizeObserver.unregisterBoundsChangeCallback(
-      (internalViewRef.current as any)?.__nativeTag
-    );
-  }
+  // if (internalViewRef.current) {
+  //   NativeResizeObserver.unregisterBoundsChangeCallback(
+  //     (internalViewRef.current as any)?.__nativeTag
+  //   );
+  // }
+  //
 
-  useLayoutEffect(() => {
-    NativeResizeObserver.registerBoundsChangeCallback(
-      (internalViewRef.current as any)?.__nativeTag,
-      () => {
-        console.log("Bounds changed");
-        setRenderStack((rs) => new Map(rs));
-        return false;
-      }
-    );
-  });
-
+  console.log("Rendering");
   // // TODO: Replace with sync onLayout and better way to refresh
   // const updateLayout = useCallback(
   //   (layoutInfo: RVLayoutInfo) => {
@@ -245,6 +253,19 @@ const RecyclerViewComponent = <T1,>(
   //   },
   //   [data?.length, recycleManager]
   // );
+
+  useLayoutEffect(() => {
+    const shadowNode = getShadowNode(childContainerViewRef);
+    console.log("=>>>>>>", shadowNode);
+    setTimeout(() => {
+      NativeResizeObserver.registerBoundsChangeCallback(shadowNode, () => {
+        // console.log("Bounds changed");
+        // setRenderStack((rs) => new Map(rs));
+        // return false;
+        return false;
+      });
+    }, 3000);
+  });
 
   return (
     <View style={{ flex: horizontal ? undefined : 1 }} ref={internalViewRef}>
@@ -284,8 +305,8 @@ const RecyclerViewComponent = <T1,>(
   );
 };
 
-export const RecyclerView = forwardRef(
-  RecyclerViewComponent
-) as typeof RecyclerViewComponent;
+export const RecyclerView = memo(
+  forwardRef(RecyclerViewComponent) as typeof RecyclerViewComponent
+);
 
 // RecyclerView.displayName = "RecyclerView";

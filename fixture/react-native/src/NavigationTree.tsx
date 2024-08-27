@@ -5,7 +5,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import Reminders from "./Reminders";
 import List from "./List";
 import PaginatedList from "./PaginatedList";
-import { Twitter, TwitterFlatList, TweetDetailScreen } from "./twitter";
+import { TwitterFlatList, TweetDetailScreen } from "./twitter";
 import ContactsSectionList from "./contacts/ContactsSectionList";
 import Contacts from "./contacts/Contacts";
 import { RootStackParamList } from "./constants";
@@ -15,6 +15,7 @@ import { Messages, MessagesFlatList } from "./Messages";
 import TwitterBenchmark from "./twitter/TwitterBenchmark";
 import TwitterCustomCellContainer from "./twitter/CustomCellRendererComponent";
 import { Masonry } from "./Masonry";
+import { NewTwitter } from "./twitter/Twitter";
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -26,7 +27,7 @@ const NavigationTree = () => {
           <Stack.Screen name="Examples" component={ExamplesScreen} />
           <Stack.Screen name="List" component={List} />
           <Stack.Screen name="PaginatedList" component={PaginatedList} />
-          <Stack.Screen name="Twitter" component={Twitter} />
+          <Stack.Screen name="Twitter" component={NewTwitter} />
           <Stack.Screen name="Reminders" component={Reminders} />
           <Stack.Screen
             name="TwitterFlatList"

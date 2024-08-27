@@ -79,9 +79,9 @@ static DOMRect getBoundingClientRect(
 NativeResizeObserver::NativeResizeObserver(std::shared_ptr<CallInvoker> jsInvoker)
 	: NativeResizeObserverCxxSpec(std::move(jsInvoker)) {}
 
-void NativeResizeObserver::registerBoundsChangeCallback(jsi::Runtime& rt, double target, jsi::Function callback) {
+void NativeResizeObserver::registerBoundsChangeCallback(jsi::Runtime& rt, jsi::Object target, jsi::Function callback) {
   auto& uiManager = getUIManagerFromRuntime(rt);
-  auto shadowNode = uiManager.findShadowNodeByTag_DEPRECATED(target);
+  auto shadowNode = shadowNodeFromValue(rt, std::move(target));
 	runtime_=&rt;
 
   if (shadowNode) {
@@ -98,15 +98,17 @@ void NativeResizeObserver::registerBoundsChangeCallback(jsi::Runtime& rt, double
   }
 }
 
-void NativeResizeObserver::unregisterBoundsChangeCallback(jsi::Runtime& rt, double target) {
-  auto it = observedNodes_.find(target);
-  if (it != observedNodes_.end()) {
-	observedNodes_.erase(it);
-	callbacks_.erase(target);
+void NativeResizeObserver::unregisterBoundsChangeCallback(jsi::Runtime& rt, jsi::Object target) {
+	auto shadowNode = shadowNodeFromValue(rt, std::move(target));
+	auto tag = shadowNode->getTag();
+	auto it = observedNodes_.find(tag);
+	if (it != observedNodes_.end()) {
+		observedNodes_.erase(it);
+		callbacks_.erase(tag);
 
-	if (observedNodes_.empty() && isHookRegistered_) {
-	  getUIManagerFromRuntime(rt).unregisterCommitHook(*this);
-	  isHookRegistered_ = false;
+		if (observedNodes_.empty() && isHookRegistered_) {
+				getUIManagerFromRuntime(rt).unregisterCommitHook(*this);
+				isHookRegistered_ = false;
 	}
   }
 }
@@ -127,25 +129,33 @@ RootShadowNode::Unshared NativeResizeObserver::shadowTreeWillCommit(
 
 				PropsParserContext propsParserContext{
 					newRootShadowNode->getSurfaceId(), *newRootShadowNode->getContextContainer()};
-				auto cloneNewRoot = newRootShadowNode->clone(propsParserContext,
-															 newRootShadowNode->getConcreteProps().layoutConstraints,
-															 newRootShadowNode->getConcreteProps().layoutContext);
+//				auto cloneNewRoot = newRootShadowNode->clone(propsParserContext,
+//															 newRootShadowNode->getConcreteProps().layoutConstraints,
+//															 newRootShadowNode->getConcreteProps().layoutContext);
 
+				auto oldNode = getShadowNodeInRevision(oldRootShadowNode, *shadowNode);
 				auto newNode = getShadowNodeInRevision(newRootShadowNode, *shadowNode);
-				cloneNewRoot->layoutIfNeeded();
+				
+				std::vector<const LayoutableShadowNode*> affectedLayoutableNodes{};
+				affectedLayoutableNodes.reserve(1024);
+				
+				newRootShadowNode->layoutIfNeeded(&affectedLayoutableNodes);
 
+				bool isSameNode = (oldNode == newNode);
 				if (newNode) {
-					auto layoutableNewNode = dynamic_cast<const LayoutableShadowNode*>(newNode.get());
+					auto layoutableNewNode = dynamic_cast<const YogaLayoutableShadowNode*>(newNode.get());
 					if (layoutableNewNode) {
-						auto cloneNewNode = dynamic_cast<const LayoutableShadowNode*>(layoutableNewNode->clone({}).get());
-						auto content = cloneNewNode->
+						auto isClean = layoutableNewNode->getIsLayoutClean();
+						auto measurements = layoutableNewNode->measure(newRootShadowNode->getConcreteProps().layoutContext, newRootShadowNode->getConcreteProps().layoutConstraints);
+//						auto cloneNewNode = dynamic_cast<const YogaLayoutableShadowNode*>(layoutableNewNode->clone({}).get());
+//						cloneNewNode->layoutTree
 						// Now you can use layoutableNewNode for layout-related operations
 						// For example: layoutableNewNode->getLayoutMetrics();
 						// Use layoutableNewNode here
 					}
 				}
 
-				auto newRect = getBoundingClientRect(cloneNewRoot, *shadowNode, false);
+				auto newRect = getBoundingClientRect(newRootShadowNode, *shadowNode, false);
 
 				if (true) {
 					for (const auto& [callback, runtime] : callbacks_[tag]) {
