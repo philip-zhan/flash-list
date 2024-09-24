@@ -17,7 +17,6 @@ import {
 } from "react-native";
 
 import { FlashListProps } from "../FlashListProps";
-import NativeResizeObserver from "../specs/NativeResizeObserver";
 
 import { RVLinearLayoutManagerImpl, SpanSizeInfo } from "./LayoutManager";
 import { RecyclerViewManager } from "./RecyclerVIewManager";
@@ -214,23 +213,6 @@ const RecyclerViewComponent = <T1,>(
    * FlashList -> render -> disable callback
    * FlashList -> completes render -> listen to callback
    */
-
-  if (internalViewRef.current) {
-    NativeResizeObserver.unregisterBoundsChangeCallback(
-      (internalViewRef.current as any)?.__nativeTag
-    );
-  }
-
-  useLayoutEffect(() => {
-    NativeResizeObserver.registerBoundsChangeCallback(
-      (internalViewRef.current as any)?.__nativeTag,
-      () => {
-        console.log("Bounds changed");
-        setRenderStack((rs) => new Map(rs));
-        return false;
-      }
-    );
-  });
 
   // // TODO: Replace with sync onLayout and better way to refresh
   // const updateLayout = useCallback(

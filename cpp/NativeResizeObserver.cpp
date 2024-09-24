@@ -3,6 +3,8 @@
 #include <react/renderer/core/ShadowNode.h>
 #include <react/renderer/uimanager/UIManagerBinding.h>
 #include <react/renderer/uimanager/primitives.h>
+#include <react/renderer/components/view/YogaLayoutableShadowNode.h>
+#include <yoga/YGNode.h>
 
 struct DOMRect {
   double x = 0;
@@ -12,6 +14,31 @@ struct DOMRect {
 };
 
 namespace facebook::react {
+
+static ShadowNode* getShadowNodeInRevisionUnshared(const RootShadowNode::Unshared& currentRevision, Tag tag) {
+	auto currentRootChildren = currentRevision->getChildren();
+
+	// Helper function to recursively search for the node
+	std::function<ShadowNode*(const ShadowNode::ListOfShared&)> findNode;
+	findNode = [&](const ShadowNode::ListOfShared& children) -> ShadowNode* {
+		for (const auto& child : children) {
+			if (child->getTag() == tag) {
+				// We found the node, return a non-const pointer
+				return const_cast<ShadowNode*>(child.get());
+			}
+			// If this node has children, search them
+			if (child->getChildren().size() > 0) {
+				auto result = findNode(child->getChildren());
+				if (result != nullptr) {
+					return result;
+				}
+			}
+		}
+		return nullptr;
+	};
+
+	return findNode(currentRootChildren);
+}
 
 static ShadowNode::Shared getShadowNodeInRevision(
 	const RootShadowNode::Shared& currentRevision,
@@ -124,55 +151,48 @@ RootShadowNode::Unshared NativeResizeObserver::shadowTreeWillCommit(
 		try {
 			for (const auto& [tag, shadowNode] : observedNodes_) {
 				auto oldRect = getBoundingClientRect(oldRootShadowNode, *shadowNode, false);
-
-				PropsParserContext propsParserContext{
-					newRootShadowNode->getSurfaceId(), *newRootShadowNode->getContextContainer()};
-				auto cloneNewRoot = newRootShadowNode->clone(propsParserContext,
-															 newRootShadowNode->getConcreteProps().layoutConstraints,
-															 newRootShadowNode->getConcreteProps().layoutContext);
-
-				auto newNode = getShadowNodeInRevision(newRootShadowNode, *shadowNode);
-				cloneNewRoot->layoutIfNeeded();
-
+				
+				auto newNode = getShadowNodeInRevisionUnshared(newRootShadowNode, shadowNode->getTag());
+				
 				if (newNode) {
-					auto layoutableNewNode = dynamic_cast<const LayoutableShadowNode*>(newNode.get());
+					auto layoutableNewNode = dynamic_cast<YogaLayoutableShadowNode*>(newNode);
 					if (layoutableNewNode) {
-						auto cloneNewNode = dynamic_cast<const LayoutableShadowNode*>(layoutableNewNode->clone({}).get());
-						auto content = cloneNewNode->
-						// Now you can use layoutableNewNode for layout-related operations
-						// For example: layoutableNewNode->getLayoutMetrics();
-						// Use layoutableNewNode here
-					}
-				}
-
-				auto newRect = getBoundingClientRect(cloneNewRoot, *shadowNode, false);
-
-				if (true) {
-					for (const auto& [callback, runtime] : callbacks_[tag]) {
-						auto oldRectObject = jsi::Object(*runtime);
-						auto newRectObject = jsi::Object(*runtime);
-
-						oldRectObject.setProperty(*runtime, "width", jsi::Value(oldRect.width));
-						oldRectObject.setProperty(*runtime, "height", jsi::Value(oldRect.height));
-						oldRectObject.setProperty(*runtime, "x", jsi::Value(oldRect.x));
-						oldRectObject.setProperty(*runtime, "y", jsi::Value(oldRect.y));
-
-						newRectObject.setProperty(*runtime, "width", jsi::Value(newRect.width));
-						newRectObject.setProperty(*runtime, "height", jsi::Value(newRect.height));
-						newRectObject.setProperty(*runtime, "x", jsi::Value(newRect.x));
-						newRectObject.setProperty(*runtime, "y", jsi::Value(newRect.y));
-
-						auto value = jsi::Object(*runtime);
-						value.setProperty(*runtime, "oldRect", oldRectObject);
-						value.setProperty(*runtime, "newRect", newRectObject);
-
-						auto result = callback.call(*runtime, std::move(value));
-						if (shouldCommit && result.isBool() && !result.asBool()) {
-							shouldCommit = false;
+						// Calculate the layout on the cloned node
+						if (!layoutableNewNode->getIsLayoutClean()) {
+							layoutableNewNode->layoutTree(newRootShadowNode->getConcreteProps().layoutContext, newRootShadowNode->getConcreteProps().layoutConstraints);
+							
+							// Get the layout metrics from the cloned node
+							auto layoutMetrics = layoutableNewNode->getLayoutMetrics();
+							
+							for (const auto& [callback, runtime] : callbacks_[tag]) {
+								auto oldRectObject = jsi::Object(*runtime);
+								auto newRectObject = jsi::Object(*runtime);
+								
+								oldRectObject.setProperty(*runtime, "width", jsi::Value(oldRect.width));
+								oldRectObject.setProperty(*runtime, "height", jsi::Value(oldRect.height));
+								oldRectObject.setProperty(*runtime, "x", jsi::Value(oldRect.x));
+								oldRectObject.setProperty(*runtime, "y", jsi::Value(oldRect.y));
+								
+								newRectObject.setProperty(*runtime, "width", jsi::Value(layoutMetrics.frame.size.width));
+								newRectObject.setProperty(*runtime, "height", jsi::Value(layoutMetrics.frame.size.height));
+								newRectObject.setProperty(*runtime, "x", jsi::Value(layoutMetrics.frame.origin.x));
+								newRectObject.setProperty(*runtime, "y", jsi::Value(layoutMetrics.frame.origin.y));
+								
+								auto value = jsi::Object(*runtime);
+								value.setProperty(*runtime, "oldRect", oldRectObject);
+								value.setProperty(*runtime, "newRect", newRectObject);
+								
+								auto result = callback.call(*runtime, std::move(value));
+								if (shouldCommit && result.isBool() && !result.asBool()) {
+									shouldCommit = false;
+									break;
+								}
+							}
 						}
 					}
 				}
-			} } catch (const std::exception& e) {
+			}
+		} catch (const std::exception& e) {
 	  // Log the error, but don't crash
 	  // You might want to use a proper logging mechanism here
 				printf("Error");

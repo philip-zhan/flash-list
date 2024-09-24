@@ -9,7 +9,7 @@ import React, {
 } from "react";
 
 import { FlashListProps, RenderTarget } from "../FlashListProps";
-// import NativeResizeObserver from "../specs/NativeResizeObserver";
+import NativeResizeObserver from "../specs/NativeResizeObserver";
 
 import { RVLayout } from "./LayoutManager";
 // import { areDimensionsEqual } from "./utils/measureLayout";
@@ -46,6 +46,23 @@ const ViewHolderInternal = <TItem,>(props: ViewHolderProps<TItem>) => {
       }
     };
   }, [index, refHolder]);
+
+  if (viewRef.current) {
+    NativeResizeObserver.unregisterBoundsChangeCallback(
+      (viewRef.current as any)?.__nativeTag
+    );
+  }
+
+  useLayoutEffect(() => {
+    NativeResizeObserver.registerBoundsChangeCallback(
+      (viewRef.current as any)?.__nativeTag,
+      () => {
+        // console.log("Bounds changed");
+        // setRenderStack((rs) => new Map(rs));
+        return true;
+      }
+    );
+  });
 
   // useEffect(() => {
   //   NativeResizeObserver.registerBoundsChangeCallback(

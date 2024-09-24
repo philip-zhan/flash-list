@@ -88,14 +88,20 @@ const TweetContent = ({ tweet, showFullText }: TweetContentProps) => {
             <GrayText>·</GrayText>
             <GrayText>2h</GrayText>
           </View>
-          <Text style={styles.description}>
-            {showFullText
-              ? tweet.fullText +
-                tweet.fullText +
-                tweet.fullText +
-                tweet.fullText +
-                tweet.fullText
-              : tweet.fullText}
+          <Text
+            style={[
+              styles.description,
+              { backgroundColor: showFullText ? "red" : undefined },
+            ]}
+          >
+            {/* {showFullText*/}
+            {/*  ? tweet.fullText +*/}
+            {/*    tweet.fullText +*/}
+            {/*    tweet.fullText +*/}
+            {/*    tweet.fullText +*/}
+            {/*    tweet.fullText*/}
+            {/*  : tweet.fullText}*/}
+            {tweet.fullText}
           </Text>
           <View style={styles.rowActions}>
             {tweetActions(
